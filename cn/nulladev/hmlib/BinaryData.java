@@ -69,6 +69,10 @@ public class BinaryData {
 		}
 	}
 	
+	public byte[] toRawBytes() {
+		return this._dataBytes;
+	}
+	
 	public byte[] toBytes() throws Exception {
 		if (this.calcErrPos() != 0)
 			this.selfCorrect();
@@ -83,6 +87,15 @@ public class BinaryData {
 			bytes[i] = ByteLib.Bits2Byte(bits);
 		}
 		return bytes;
+	}
+	
+	public static BinaryData fromRawBytes(byte[] dataBytes, int size) throws Exception {
+		if (dataBytes.length != PACKET_BYTES) {
+			throw new Exception("Invalid data number.");
+		}
+		BinaryData data = new BinaryData(dataBytes.length);
+		data._dataBytes = dataBytes;
+		return data;
 	}
 	
 	public static BinaryData fromBytes(byte[] dataBytes) throws Exception {
