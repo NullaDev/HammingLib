@@ -1,6 +1,6 @@
 package cn.nulladev.hmlib;
 
-public class BinaryData {
+public class HammingPacket {
 	
 	public static final int PACKET_BITS = 32768;
 	public static final int PACKET_BYTES = 4096;
@@ -9,16 +9,19 @@ public class BinaryData {
 	private int _size;
 	private byte _dataBytes[] = new byte[PACKET_BYTES];
 	
-	private BinaryData(int size) {
+	/** 私有构造器，请使用工厂方法初始化。 */
+	private HammingPacket(int size) {
 		this._size = size;
 	}
 	
+	/** 获取pos位置的bit值，返回'0'或'1'。 */
 	public char getBitAtPos(int pos) {
 		int index = pos / 8;
 		String byteStr = ByteLib.byte2Bits(this._dataBytes[index]);
 		return byteStr.charAt(pos % 8);
 	}
 	
+	/** 将pos位置的bit值设置为'0'或'1'。 */
 	public void setBitAtPos(int pos, char c) throws Exception {
 		if (c != '0' && c != '1') {
 			throw new Exception("Invalid bit char.");
@@ -29,6 +32,7 @@ public class BinaryData {
 		this._dataBytes[index] = ByteLib.Bits2Byte(SB.toString());
 	}
 	
+	/** 拼好汉明码处理过的数据的StringBuffer，方便进一步处理。 */
 	public StringBuffer rawDataString() {
 		StringBuffer dataBuf = new StringBuffer();
 		for (int i = 0; i < PACKET_BYTES; i++) {
@@ -37,6 +41,12 @@ public class BinaryData {
 		return dataBuf;
 	}
 	
+	/** 直接输出汉明码处理过的看不懂数据。 */
+	public byte[] toRawBytes() {
+		return this._dataBytes;
+	}
+	
+	/** 根据汉明码计算错误位置。 */
 	public int calcErrPos() {
 		int flag = 0;
 		for (int i = 0; i < PACKET_BITS; i++) {
@@ -47,6 +57,7 @@ public class BinaryData {
 		return flag;
 	}
 	
+	/** 试图使用汉明码自我修正。 */
 	public void selfCorrect() throws Exception {
 		int pos = this.calcErrPos();
 		if (pos == 0) {
@@ -69,10 +80,7 @@ public class BinaryData {
 		}
 	}
 	
-	public byte[] toRawBytes() {
-		return this._dataBytes;
-	}
-	
+	/** 输出真实数据。 */
 	public byte[] toBytes() throws Exception {
 		if (this.calcErrPos() != 0)
 			this.selfCorrect();
@@ -89,21 +97,23 @@ public class BinaryData {
 		return bytes;
 	}
 	
-	public static BinaryData fromRawBytes(byte[] dataBytes, int size) throws Exception {
+	/** 工厂方法，使用汉明码处理过的看不懂数据实例化。 */
+	public static HammingPacket fromRawBytes(byte[] dataBytes, int size) throws Exception {
 		if (dataBytes.length != PACKET_BYTES) {
 			throw new Exception("Invalid data number.");
 		}
-		BinaryData data = new BinaryData(dataBytes.length);
+		HammingPacket data = new HammingPacket(dataBytes.length);
 		data._dataBytes = dataBytes;
 		return data;
 	}
 	
-	public static BinaryData fromBytes(byte[] dataBytes) throws Exception {
+	/** 工厂方法，使用正常数据实例化。 */
+	public static HammingPacket fromBytes(byte[] dataBytes) throws Exception {
 		if (dataBytes.length > VALID_BYTES) {
 			throw new Exception("Too many bytes in one packet.");
 		}
-		BinaryData data = new BinaryData(dataBytes.length);
-		//ƴ��ԭʼ����
+		HammingPacket data = new HammingPacket(dataBytes.length);
+		//拼接原始数据
 		StringBuffer dataBuf = new StringBuffer();
 		for (byte b : dataBytes) {
 			dataBuf.append(ByteLib.byte2Bits(b));
@@ -111,13 +121,13 @@ public class BinaryData {
 		for (int i = 0; i < VALID_BYTES - dataBytes.length; i++) {
 			dataBuf.append("00000000");
 		}
-		//�ں�����λ������0
+		//在汉明码位置先填0
 		StringBuffer SB = new StringBuffer(dataBuf.toString());
 		SB.insert(0, "0");
 		for (int i = 0; i < 15; i++) {
 			SB.insert((int)Math.pow(2, i), "0");
 		}
-		//���㺺����
+		//计算汉明码
 		int flag = 0;
 		for (int i = 0; i < PACKET_BITS; i++) {
 			if (SB.charAt(i) == '1') {
@@ -129,7 +139,7 @@ public class BinaryData {
 				SB.setCharAt((int)Math.pow(2, i), '1');
 			}
 		}
-		//����checksum
+		//计算checksum
 		int flag2 = 0;
 		for (int i = 1; i < PACKET_BITS; i++) {
 			if (SB.charAt(i) == '1') {
@@ -139,7 +149,7 @@ public class BinaryData {
 		if (flag2 % 2 == 1) {
 			SB.setCharAt(0, '1');
 		}
-		//���
+		//填充
 		for (int i = 0; i < PACKET_BYTES; i++) {
 			String bits = SB.substring(8 * i, 8 * i + 8);
 			data._dataBytes[i] = ByteLib.Bits2Byte(bits);

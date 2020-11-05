@@ -9,7 +9,7 @@ public class Sample {
 		byte bs[] = new byte[4094];
 		ran.nextBytes(bs);
 		try {
-			BinaryData bdata = BinaryData.fromBytes(bs);
+			HammingPacket bdata = HammingPacket.fromBytes(bs);
 			//int pos = ran.nextInt(32768);
 			int pos = 12345;
 			char c = bdata.getBitAtPos(pos) == '0'? '1' : '0';
