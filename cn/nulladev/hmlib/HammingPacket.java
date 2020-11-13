@@ -102,7 +102,7 @@ public class HammingPacket {
 		if (dataBytes.length != PACKET_BYTES) {
 			throw new Exception("Invalid data number.");
 		}
-		HammingPacket data = new HammingPacket(dataBytes.length);
+		HammingPacket data = new HammingPacket(size);
 		data._dataBytes = dataBytes;
 		return data;
 	}

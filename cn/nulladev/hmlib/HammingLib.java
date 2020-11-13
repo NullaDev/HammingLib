@@ -35,7 +35,12 @@ public class HammingLib {
 	
 	public HammingPacket[] handleMultiplePackets(byte[] data) {
 		//这里的data长度大于4094，不能用一个包装下，所以返回多个包的数组。
-		//为了避免传输过程中经常出现的连续n个比特位错误，需要把data打乱顺序后进行分装，以包的数量对抗连续错误。
+		//TODO 还没写。
+		return null;
+	}
+	
+	public HammingPacket[] reorder(byte[] data) {
+		//为了避免传输过程中经常出现的连续n个比特位错误，需要把包打乱顺序后进行分装，以包的数量对抗连续错误。
 		//TODO 还没写。
 		return null;
 	}
