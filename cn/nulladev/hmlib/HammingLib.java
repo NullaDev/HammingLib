@@ -16,31 +16,27 @@ public class HammingLib {
 	/** 还原单个汉明码处理过的数据包。 */
 	public static byte[] restoreSinglePacket(HammingPacket packet) {
 		try {
-			return packet.toBytes();
+			return packet.toRealBytes();
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
+			//System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
 		return null;
 	}
 	
 	/** 还原单个汉明码处理过的数据包。 */
-	public static byte[] restoreSinglePacket(byte[] data, int size) {
+	public static byte[] restoreSinglePacket(byte[] data) {
 		try {
-			return restoreSinglePacket(HammingPacket.fromRawBytes(data, size));
+			return restoreSinglePacket(HammingPacket.fromRawBytes(data));
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
+			//System.out.println(e.getMessage());
+			e.printStackTrace();
 		}
 		return null;
 	}
 	
+	/** 获取汉明码处理过的数据包的数组，此处data长度大于4094。 */
 	public HammingPacket[] handleMultiplePackets(byte[] data) {
-		//这里的data长度大于4094，不能用一个包装下，所以返回多个包的数组。
-		//TODO 还没写。
-		return null;
-	}
-	
-	public HammingPacket[] reorder(byte[] data) {
-		//为了避免传输过程中经常出现的连续n个比特位错误，需要把包打乱顺序后进行分装，以包的数量对抗连续错误。
 		//TODO 还没写。
 		return null;
 	}

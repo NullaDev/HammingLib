@@ -2,22 +2,25 @@ package cn.nulladev.hmlib;
 
 public class HammingPacket {
 	
-	public static final int PACKET_BITS = 32768;
-	public static final int PACKET_BYTES = 4096;
-	public static final int VALID_BYTES = 4094;
+	public static final int HEADER_BYTES = 5;
+	public static final int DATA_BITS = 32768;
+	public static final int DATA_BYTES = 4096;
+	public static final int DATA_BYTES_VALID = 4094;
+	public static final int TOTAL_BYTES = HEADER_BYTES + DATA_BYTES;
 	
-	private int _size;
-	private byte _dataBytes[] = new byte[PACKET_BYTES];
+	private short _index = 0;
+	private short _size = 4094;
+	private byte _fragflag = 1;
+	private byte _headerBytes[] = new byte[HEADER_BYTES];
+	private byte _dataBytes[] = new byte[DATA_BYTES];
 	
 	/** 私有构造器，请使用工厂方法初始化。 */
-	private HammingPacket(int size) {
-		this._size = size;
-	}
+	private HammingPacket() {}
 	
 	/** 获取pos位置的bit值，返回'0'或'1'。 */
 	public char getBitAtPos(int pos) {
 		int index = pos / 8;
-		String byteStr = ByteLib.byte2Bits(this._dataBytes[index]);
+		String byteStr = Bytelib.byte2bits(this._dataBytes[index]);
 		return byteStr.charAt(pos % 8);
 	}
 	
@@ -27,29 +30,51 @@ public class HammingPacket {
 			throw new Exception("Invalid bit char.");
 		}
 		int index = pos / 8;
-		StringBuffer SB = new StringBuffer(ByteLib.byte2Bits(this._dataBytes[index]));
+		StringBuffer SB = new StringBuffer(Bytelib.byte2bits(this._dataBytes[index]));
 		SB.setCharAt(pos % 8, c);
-		this._dataBytes[index] = ByteLib.Bits2Byte(SB.toString());
+		this._dataBytes[index] = Bytelib.bits2byte(SB.toString());
 	}
 	
 	/** 拼好汉明码处理过的数据的StringBuffer，方便进一步处理。 */
 	public StringBuffer rawDataString() {
 		StringBuffer dataBuf = new StringBuffer();
-		for (int i = 0; i < PACKET_BYTES; i++) {
-			dataBuf.append(ByteLib.byte2Bits(this._dataBytes[i]));
+		for (int i = 0; i < DATA_BYTES; i++) {
+			dataBuf.append(Bytelib.byte2bits(this._dataBytes[i]));
 		}
 		return dataBuf;
 	}
 	
-	/** 直接输出汉明码处理过的看不懂数据。 */
+	/** 直接输出整个包。 */
 	public byte[] toRawBytes() {
-		return this._dataBytes;
+		return Bytelib.connect(this._headerBytes, this._dataBytes);
+	}
+	
+	/** 初始化包的header。 */
+	public HammingPacket initHeader(short index, byte fragflag) {
+		this._index = index;
+		this._fragflag = fragflag;
+		this.createHeader();
+		return this;
+	}
+	
+	/** 根据index和size生成包的header。 */
+	private void createHeader() {
+		this._headerBytes = Bytelib.connect(Bytelib.short2byte(_index), Bytelib.short2byte(_size));
+		this._headerBytes = Bytelib.connect(this._headerBytes, new byte[] {this._fragflag});
+	}
+	
+	public boolean isFinal() {
+		return this._fragflag == 0;
+	}
+	
+	public String info() {
+		return "packet index:" + this._index + ", size:" + this._size + ", fragflag:" + this._fragflag;
 	}
 	
 	/** 根据汉明码计算错误位置。 */
 	public int calcErrPos() {
 		int flag = 0;
-		for (int i = 0; i < PACKET_BITS; i++) {
+		for (int i = 0; i < DATA_BITS; i++) {
 			if (getBitAtPos(i) == '1') {
 				flag = flag ^ i;
 			}
@@ -65,23 +90,24 @@ public class HammingPacket {
 			return;
 		} else {
 			int flag = 0;
-			for (int i = 0; i < PACKET_BITS; i++) {
+			for (int i = 0; i < DATA_BITS; i++) {
 				if (getBitAtPos(i) == '1') {
 					flag++;
 				}
 			}
 			if (flag % 2 == 0) {
-				throw new Exception("more than 2 error, cannot correct");
+				throw new Exception("more than 2 error detected, cannot correct");
 			} else {
 				char c = this.getBitAtPos(pos) == '0'? '1' : '0';
 				this.setBitAtPos(pos, c);
-				System.out.println("1 error at pos" + pos + ", corrected");
+				System.out.println("1 error detected at packet" + this._index);
+				System.out.println("wrong bit at pos" + pos + ", corrected");
 			}
 		}
 	}
 	
 	/** 输出真实数据。 */
-	public byte[] toBytes() throws Exception {
+	public byte[] toRealBytes() throws Exception {
 		if (this.calcErrPos() != 0)
 			this.selfCorrect();
 		StringBuffer SB = this.rawDataString();
@@ -92,33 +118,42 @@ public class HammingPacket {
 		byte bytes[] = new byte[this._size];
 		for (int i = 0; i < this._size; i++) {
 			String bits = SB.substring(8 * i, 8 * i + 8);
-			bytes[i] = ByteLib.Bits2Byte(bits);
+			bytes[i] = Bytelib.bits2byte(bits);
 		}
 		return bytes;
 	}
 	
 	/** 工厂方法，使用汉明码处理过的看不懂数据实例化。 */
-	public static HammingPacket fromRawBytes(byte[] dataBytes, int size) throws Exception {
-		if (dataBytes.length != PACKET_BYTES) {
+	public static HammingPacket fromRawBytes(byte[] bytes) throws Exception {
+		if (bytes.length != TOTAL_BYTES) {
 			throw new Exception("Invalid data number.");
 		}
-		HammingPacket data = new HammingPacket(size);
-		data._dataBytes = dataBytes;
+		HammingPacket data = new HammingPacket();
+		for (int i = 0; i<HEADER_BYTES; i++) {
+			data._headerBytes[i] = bytes[i];
+    	}
+		data._index = Bytelib.byte2short(new byte[]{data._headerBytes[0], data._headerBytes[1]});
+		data._size = Bytelib.byte2short(new byte[]{data._headerBytes[2], data._headerBytes[3]});
+		data._fragflag = data._headerBytes[4];
+		for (int i = 0; i<DATA_BYTES; i++) {
+			data._dataBytes[i] = bytes[i+HEADER_BYTES];
+    	}
 		return data;
 	}
 	
 	/** 工厂方法，使用正常数据实例化。 */
 	public static HammingPacket fromBytes(byte[] dataBytes) throws Exception {
-		if (dataBytes.length > VALID_BYTES) {
+		if (dataBytes.length > DATA_BYTES_VALID) {
 			throw new Exception("Too many bytes in one packet.");
 		}
-		HammingPacket data = new HammingPacket(dataBytes.length);
+		HammingPacket data = new HammingPacket();
+		data._size = (short) dataBytes.length;
 		//拼接原始数据
 		StringBuffer dataBuf = new StringBuffer();
 		for (byte b : dataBytes) {
-			dataBuf.append(ByteLib.byte2Bits(b));
+			dataBuf.append(Bytelib.byte2bits(b));
 		}
-		for (int i = 0; i < VALID_BYTES - dataBytes.length; i++) {
+		for (int i = 0; i < DATA_BYTES_VALID - dataBytes.length; i++) {
 			dataBuf.append("00000000");
 		}
 		//在汉明码位置先填0
@@ -129,7 +164,7 @@ public class HammingPacket {
 		}
 		//计算汉明码
 		int flag = 0;
-		for (int i = 0; i < PACKET_BITS; i++) {
+		for (int i = 0; i < DATA_BITS; i++) {
 			if (SB.charAt(i) == '1') {
 				flag = flag ^ i;
 			}
@@ -141,7 +176,7 @@ public class HammingPacket {
 		}
 		//计算checksum
 		int flag2 = 0;
-		for (int i = 1; i < PACKET_BITS; i++) {
+		for (int i = 1; i < DATA_BITS; i++) {
 			if (SB.charAt(i) == '1') {
 				flag2++;
 			}
@@ -150,41 +185,11 @@ public class HammingPacket {
 			SB.setCharAt(0, '1');
 		}
 		//填充
-		for (int i = 0; i < PACKET_BYTES; i++) {
+		for (int i = 0; i < DATA_BYTES; i++) {
 			String bits = SB.substring(8 * i, 8 * i + 8);
-			data._dataBytes[i] = ByteLib.Bits2Byte(bits);
+			data._dataBytes[i] = Bytelib.bits2byte(bits);
 		}
 		return data;
 	}
 
-}
-
-class ByteLib {
-	
-	static String byte2Bits(byte b) {
-		return "" 
-		+ (byte)((b >> 7) & 0x1) 
-		+ (byte)((b >> 6) & 0x1) 
-		+ (byte)((b >> 5) & 0x1) 
-		+ (byte)((b >> 4) & 0x1) 
-		+ (byte)((b >> 3) & 0x1) 
-		+ (byte)((b >> 2) & 0x1) 
-		+ (byte)((b >> 1) & 0x1) 
-		+ (byte)((b >> 0) & 0x1);
-	}
-	
-	static byte Bits2Byte(String bits) {
-		if (bits == null)
-			return 0;
-		if (bits.length() != 8) {
-			return 0;
-		} else {
-			if (bits.charAt(0) == '0') {
-				return (byte) Integer.parseInt(bits, 2);
-			} else {
-				return (byte) (Integer.parseInt(bits, 2) - 256);
-			}
-		}
-	}
-	
 }
