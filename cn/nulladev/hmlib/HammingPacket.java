@@ -67,6 +67,10 @@ public class HammingPacket {
 		return this._fragflag == 0;
 	}
 	
+	public short getIndex() {
+		return this._index;
+	}
+	
 	public String info() {
 		return "packet index:" + this._index + ", size:" + this._size + ", fragflag:" + this._fragflag;
 	}
