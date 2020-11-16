@@ -18,8 +18,8 @@ public class HammingLib {
 		try {
 			return packet.toRealBytes();
 		} catch (Exception e) {
-			//System.out.println(e.getMessage());
-			e.printStackTrace();
+			System.out.println(e.getMessage());
+			//e.printStackTrace();
 		}
 		return null;
 	}
@@ -29,15 +29,31 @@ public class HammingLib {
 		try {
 			return restoreSinglePacket(HammingPacket.fromRawBytes(data));
 		} catch (Exception e) {
-			//System.out.println(e.getMessage());
-			e.printStackTrace();
+			System.out.println(e.getMessage());
+			//e.printStackTrace();
 		}
 		return null;
 	}
 	
 	/** 获取汉明码处理过的数据包的数组，此处data长度大于4094。 */
-	public HammingPacket[] handleMultiplePackets(byte[] data) {
-		//TODO 还没写。
+	public static HammingPacket[] handleMultiplePackets(byte[] data) {
+		try {
+			int size = (data.length / 4094) + 1;
+			HammingPacket packets[] = new HammingPacket[size];
+			for (int i = 0; i<size; i++) {
+				int packet_size = i==size-1? data.length%4094 : 4094;
+				byte packet_data[] = new byte[packet_size];
+				for (int j = 0; j<packet_data.length; j++) {
+					packet_data[j] = data[i*4094+j];
+				}
+				packets[i] = HammingPacket.fromBytes(packet_data);
+				packets[i].initHeader((short)i, i==size-1? (byte)0:(byte)1);
+			}
+			return packets;
+		} catch (Exception e) {
+			System.out.println(e.getMessage());
+			//e.printStackTrace();
+		}
 		return null;
 	}
 
