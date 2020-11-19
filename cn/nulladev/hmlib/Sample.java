@@ -20,8 +20,8 @@ public class Sample {
 			boolean flag = true;
 			for (int i = 0; i< packets.length; i++) {
 				byte bs1[] = HammingLib.restoreSinglePacket(packets[i].toRawBytes());
-				for (int j = 0; j < bs1.length; j++) {
-					if(bs[4094*i+j] != bs1[j]) {
+				for (int j = 5; j < bs1.length; j++) {
+					if(bs[4089*i+j] != bs1[j]) {
 						System.out.println("error at pos" + i);
 						System.out.println("bs[i] =" + bs[i]);
 						System.out.println("but bs1[i] =" + bs1[i]);
